@@ -1,19 +1,12 @@
 {
   "manifest_version": 3,
-  "name": "Grafana Timestamp Injector",
+  "name": "lmhelper",
   "version": "1.0",
-  "description": "根据时间戳自动生成并跳转到Grafana监控页面",
+  "description": "self helper",
   "permissions": [
-    "activeTab",
-    "storage"
+    "activeTab"
   ],
   "action": {
-    "default_popup": "popup.html",
-    "default_title": "Grafana Timestamp Injector"
-  },
-  "icons": {
-    "16": "icon16.png",
-    "48": "icon48.png",
-    "128": "icon128.png"
+    "default_popup": "popup.html"
   }
 }
