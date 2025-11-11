@@ -3,6 +3,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const timeRangeInput = document.getElementById('timeRange');
     const jumpButton = document.getElementById('jumpButton');
     const statusDiv = document.getElementById('status');
+    const releaseNameInput = document.getElementById('releaseName');
+    const suffixMatchCheckbox = document.getElementById('suffixMatch');
+    const serverEntryCheckbox = document.getElementById('serverEntry');
+
+    // 设置可展开板块
+    setupCollapsible();
 
     jumpButton.addEventListener('click', async () => {
         console.log('跳转按钮点击');
@@ -38,7 +44,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            const newUrl = createNewUrl(tab.url, fromTimestamp, toTimestamp);
+            let newUrl = setRange(tab.url, fromTimestamp, toTimestamp);
+
+            // 检查 Release 板块是否展开且是否填写了内容
+            const coll = document.querySelector('.collapsible');
+            if (coll.classList.contains('active') && releaseNameInput.value.trim()) {
+                newUrl = updateQuery(newUrl, releaseNameInput.value.trim(),
+                                            suffixMatchCheckbox.checked, serverEntryCheckbox.checked);
+            }
+
             // 5. 更新 Tab
             console.log("新的URL:", newUrl);
             await chrome.tabs.update(tab.id, { url: newUrl });
@@ -49,6 +63,66 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+// 设置可展开板块
+function setupCollapsible() {
+    const coll = document.querySelector('.collapsible');
+    const content = document.querySelector('.content');
+
+    coll.addEventListener('click', function() {
+        this.classList.toggle('active');
+        content.classList.toggle('show');
+    });
+}
+
+// 更新 Release 配置
+function updateQuery(currentUrl, releaseName, suffixMatch, serverEntry) {
+    const url = new URL(currentUrl);
+    const params = url.searchParams;
+    const panesParam = params.get('panes');
+
+    if (!panesParam) {
+        throw new Error('"panes" parameter not found in URL.');
+    }
+
+    const panesJson = decodeURIComponent(panesParam);
+    const panesObj = JSON.parse(panesJson);
+
+    const firstPaneKey = Object.keys(panesObj)[0];
+    if (!firstPaneKey || !panesObj[firstPaneKey]) {
+        throw new Error('Could not find a valid pane in URL.');
+    }
+
+    // 构建表达式
+    let expr = `${releaseName} AND (`;
+    let conditions = [];
+
+    conditions.push(`app:="${releaseName}-lb"`);
+
+    if (suffixMatch) {
+        conditions.push(`app:~"${releaseName}-.*"`);
+    }
+
+    if (serverEntry) {
+        conditions.push(`app:="model-gateway"`);
+        conditions.push(`app:="traefik"`);
+    }
+
+
+    expr += conditions.join(' OR ') + ')';
+
+    // 更新 expr 字段
+    if (!panesObj[firstPaneKey].queries.expr) {
+        panesObj[firstPaneKey].queries.expr = '';
+    }
+    panesObj[firstPaneKey].queries.expr = expr;
+
+    const newPanesJson = JSON.stringify(panesObj);
+    params.set('panes', newPanesJson);
+
+    url.search = params.toString();
+    return url.href;
+}
 
 function parseTraceIdToTimestamp(traceId) {
     if (!traceId || traceId.length < 14) {
@@ -102,7 +176,7 @@ function parseTimeRangeToMilliseconds(rangeStr) {
  * @param {number} toTimestamp
  * @returns {string}
  */
-function createNewUrl(currentUrl, fromTimestamp, toTimestamp) {
+function setRange(currentUrl, fromTimestamp, toTimestamp) {
     const url = new URL(currentUrl);
     const params = url.searchParams;
     const panesParam = params.get('panes');

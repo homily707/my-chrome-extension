@@ -40,10 +40,55 @@
             color: red;
             font-size: 12px;
         }
+        .collapsible {
+            background-color: #f1f1f1;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            width: 100%;
+            text-align: left;
+            outline: none;
+            font-size: 14px;
+            font-weight: bold;
+            margin-top: 15px;
+        }
+        .collapsible:hover {
+            background-color: #ddd;
+        }
+        .collapsible:after {
+            content: '\002B';
+            color: black;
+            font-weight: bold;
+            float: right;
+        }
+        .collapsible.active:after {
+            content: '\2212';
+        }
+        .content {
+            padding: 0;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.2s ease-out;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+        }
+        .content.show {
+            max-height: 200px;
+            padding: 10px;
+        }
+        .checkbox-group {
+            margin-top: 10px;
+        }
+        .checkbox-item {
+            margin-bottom: 5px;
+        }
+        input[type="checkbox"] {
+            margin-right: 5px;
+        }
     </style>
 </head>
 <body>
-    <h1>Grafana Time Jumper</h1>
+    <h1>Grafana Helper</h1>
     <div class="form-group">
         <label for="traceId">Trace ID:</label>
         <input type="text" id="traceId" placeholder="e.g., 20251104155404...">
@@ -52,7 +97,26 @@
         <label for="timeRange">Range (+/-):</label>
         <input type="text" id="timeRange" value="5m">
     </div>
-    <button id="jumpButton">Jump to Time</button>
+    <button type="button" class="collapsible">APP: </button>
+    <div class="content">
+        <div class="form-group">
+            <label for="releaseName">Release Name:</label>
+            <input type="text" id="releaseName" placeholder="e.g., 202511101105294d9d065849564037">
+        </div>
+        <div class="checkbox-group">
+            <div class="checkbox-item">
+                <input type="checkbox" id="suffixMatch">
+                <label for="suffixMatch">Suffix-regex: </label>
+            </div>
+            <div class="checkbox-item">
+                <input type="checkbox" id="serverEntry">
+                <label for="serverEntry">tracing: </label>
+            </div>
+        </div>
+    </div>
+
+    <button id="jumpButton">GO</button>
+
     <div id="status"></div>
 
     <script src="popup.js"></script>
