@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     const traceIdInput = document.getElementById('traceId');
     const timeRangeInput = document.getElementById('timeRange');
     const jumpButton = document.getElementById('jumpButton');
@@ -7,7 +7,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const suffixMatchCheckbox = document.getElementById('suffixMatch');
     const serverEntryCheckbox = document.getElementById('serverEntry');
 
-    // 设置可展开板块
+    // 加载保存的数据
+    await loadFormData();
+
+    // 设置自动保存
+    setupAutoSave();
+
+    // 设置可展开板块（用于自动保存）
     setupCollapsible();
 
     jumpButton.addEventListener('click', async () => {
@@ -49,14 +55,15 @@ document.addEventListener('DOMContentLoaded', () => {
             // 检查 Release 板块是否展开且是否填写了内容
             const coll = document.querySelector('.collapsible');
             if (coll.classList.contains('active') && releaseNameInput.value.trim()) {
-                newUrl = updateQuery(newUrl, releaseNameInput.value.trim(),
+                newUrl = updateQuery(newUrl, traceId, releaseNameInput.value.trim(),
                                             suffixMatchCheckbox.checked, serverEntryCheckbox.checked);
             }
 
-            // 5. 更新 Tab
+            // 5. 保存当前数据并更新 Tab
+            await saveFormData();
             console.log("新的URL:", newUrl);
             await chrome.tabs.update(tab.id, { url: newUrl });
-            window.close(); // 操作成功后关闭 popup
+            //window.close(); // 操作成功后关闭 popup
         } catch (error) {
             statusDiv.textContent = `Error: Failed to parse Grafana URL. ${error.message}`;
             console.error(error);
@@ -72,11 +79,13 @@ function setupCollapsible() {
     coll.addEventListener('click', function() {
         this.classList.toggle('active');
         content.classList.toggle('show');
+        // 保存折叠状态
+        saveFormData();
     });
 }
 
 // 更新 Release 配置
-function updateQuery(currentUrl, releaseName, suffixMatch, serverEntry) {
+function updateQuery(currentUrl, traceId, releaseName, suffixMatch, serverEntry) {
     const url = new URL(currentUrl);
     const params = url.searchParams;
     const panesParam = params.get('panes');
@@ -94,7 +103,7 @@ function updateQuery(currentUrl, releaseName, suffixMatch, serverEntry) {
     }
 
     // 构建表达式
-    let expr = `${releaseName} AND (`;
+    let expr = `${traceId} AND (`;
     let conditions = [];
 
     conditions.push(`app:="${releaseName}-lb"`);
@@ -111,16 +120,15 @@ function updateQuery(currentUrl, releaseName, suffixMatch, serverEntry) {
 
     expr += conditions.join(' OR ') + ')';
 
-    // 更新 expr 字段
-    if (!panesObj[firstPaneKey].queries.expr) {
-        panesObj[firstPaneKey].queries.expr = '';
-    }
-    panesObj[firstPaneKey].queries.expr = expr;
-
+    console.log("before query:", panesObj[firstPaneKey].queries);
+    panesObj[firstPaneKey].queries[0].expr = expr;
+    console.log("expr:", expr);
+    console.log("after query:", panesObj[firstPaneKey].queries);
     const newPanesJson = JSON.stringify(panesObj);
     params.set('panes', newPanesJson);
 
     url.search = params.toString();
+    console.log("url:", url);
     return url.href;
 }
 
@@ -201,7 +209,68 @@ function setRange(currentUrl, fromTimestamp, toTimestamp) {
 
     const newPanesJson = JSON.stringify(panesObj);
     params.set('panes', newPanesJson);
-    
+
     url.search = params.toString();
     return url.href;
+}
+
+// 数据存储相关函数
+async function saveFormData() {
+    const formData = {
+        traceId: document.getElementById('traceId').value,
+        timeRange: document.getElementById('timeRange').value,
+        releaseName: document.getElementById('releaseName').value,
+        suffixMatch: document.getElementById('suffixMatch').checked,
+        serverEntry: document.getElementById('serverEntry').checked,
+        isCollapsibleActive: document.querySelector('.collapsible').classList.contains('active')
+    };
+
+    try {
+        await chrome.storage.local.set({ 'extensionData': formData });
+    } catch (error) {
+        console.error('保存数据失败:', error);
+    }
+}
+
+async function loadFormData() {
+    try {
+        const result = await chrome.storage.local.get(['extensionData']);
+        const formData = result.extensionData;
+
+        if (formData) {
+            document.getElementById('traceId').value = formData.traceId || '';
+            document.getElementById('timeRange').value = formData.timeRange || '5m';
+            document.getElementById('releaseName').value = formData.releaseName || '';
+            document.getElementById('suffixMatch').checked = formData.suffixMatch || false;
+            document.getElementById('serverEntry').checked = formData.serverEntry || false;
+
+            // 恢复折叠状态
+            const coll = document.querySelector('.collapsible');
+            const content = document.querySelector('.content');
+            if (formData.isCollapsibleActive) {
+                coll.classList.add('active');
+                content.classList.add('show');
+            }
+        }
+    } catch (error) {
+        console.error('加载数据失败:', error);
+    }
+}
+
+function setupAutoSave() {
+    // 监听输入变化，自动保存
+    const inputs = ['traceId', 'timeRange', 'releaseName'];
+    inputs.forEach(id => {
+        document.getElementById(id).addEventListener('input', () => {
+            saveFormData();
+        });
+    });
+
+    // 监听复选框变化
+    const checkboxes = ['suffixMatch', 'serverEntry'];
+    checkboxes.forEach(id => {
+        document.getElementById(id).addEventListener('change', () => {
+            saveFormData();
+        });
+    });
 }
