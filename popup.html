@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Grafana Time Jumper</title>
+  <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            width: 320px;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            font-size: 20px;
+            margin-top: 0;
+            margin-bottom: 20px;
+            color: #2d3748;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            color: #4a5568;
+            font-size: 14px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        input[type="text"]:hover {
+            border-color: #cbd5e0;
+        }
+
+        .collapsible {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            cursor: pointer;
+            padding: 12px 16px;
+            width: 100%;
+            text-align: left;
+            outline: none;
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 20px;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .collapsible:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .collapsible:after {
+            content: '\002B';
+            color: white;
+            font-weight: bold;
+            float: right;
+            margin-left: 8px;
+        }
+
+        .collapsible.active:after {
+            content: '\2212';
+        }
+
+        .content {
+            padding: 0;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+            background: #f7fafc;
+            border-radius: 0 0 10px 10px;
+            margin-top: -2px;
+        }
+
+        .content.show {
+            max-height: 300px;
+            padding: 16px;
+            border: 2px solid #e2e8f0;
+            border-top: none;
+            border-radius: 0 0 10px 10px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-top: 12px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0;
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            margin-right: 8px;
+            width: 18px;
+            height: 18px;
+            accent-color: #667eea;
+        }
+
+        .checkbox-item label {
+            margin-bottom: 0;
+            font-weight: 500;
+            font-size: 14px;
+            color: #4a5568;
+        }
+
+        #jumpButton {
+            width: 100%;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 10px;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        #jumpButton:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        #jumpButton:active {
+            transform: translateY(0);
+        }
+
+        #status {
+            margin-top: 12px;
+            color: #e53e3e;
+            font-size: 13px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            background: #fed7d7;
+            border: 1px solid #feb2b2;
+            display: none;
+        }
+
+        #status.show {
+            display: block;
+        }
+
+        #status.success {
+            color: #38a169;
+            background: #c6f6d5;
+            border-color: #9ae6b4;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Grafana Helper</h1>
+        <div class="form-group">
+            <label for="traceId">Trace ID:</label>
+            <input type="text" id="traceId" placeholder="e.g., 20251104155404...">
+        </div>
+        <div class="form-group">
+            <label for="timeRange">Range (+/-):</label>
+            <input type="text" id="timeRange" value="5m">
+        </div>
+        <button type="button" class="collapsible">APP: </button>
+        <div class="content">
+            <div class="form-group">
+                <label for="releaseName">Release Name:</label>
+                <input type="text" id="releaseName" placeholder="e.g., 202511101105294d9d065849564037">
+            </div>
+            <div class="checkbox-group">
+                <div class="checkbox-item">
+                    <label for="suffixMatch">Suffix-regex: </label>
+                    <input type="checkbox" id="suffixMatch">
+                </div>
+                <div class="checkbox-item">
+                    <label for="serverEntry">Tracing: </label>
+                    <input type="checkbox" id="serverEntry">
+                </div>
+            </div>
+        </div>
+
+        <button id="jumpButton">GO</button>
+
+        <div id="status"></div>
+
+        <script src="popup.js"></script>
+    </div>
+</body>
+</html>
